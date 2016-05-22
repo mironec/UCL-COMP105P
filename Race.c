@@ -16,7 +16,7 @@
 
 int irLeft, irRight;
 int irLeftOld, irRightOld;
-float speedModifier = 1.0f;
+float speedModifier = 2.0f;
 
 int distance=10000;
 
@@ -212,7 +212,7 @@ void scanSurroundings(){
   }
   
   /*distAvg /= surrWalls;*/ distAvg = MAZE_SQUARE_CM/2-6;
-  for(i=0;i<4;i++){
+  for(i=3;i>=0;i--){
     if(dists[i] < MAZE_SQUARE_CM && dists[i] > distAvg+3 && dists[(i+2)%4] > MAZE_SQUARE_CM){
       turnRobotTo(i);
       drive_goto((dists[i]-distAvg)/distancePerTick*10, (dists[i]-distAvg)/distancePerTick*10);
