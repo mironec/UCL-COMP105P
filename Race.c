@@ -16,7 +16,7 @@
 
 int irLeft, irRight;
 int irLeftOld, irRightOld;
-float speedModifier = 1.5f;
+float speedModifier = 1.0f;
 
 int distance=10000;
 
