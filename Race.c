@@ -34,58 +34,8 @@ char visited[MAP_WIDTH][MAP_HEIGHT];
 char racing = 0;
 
 /**
- * Gets encoder ticks and computes the global variables required to know the robot's position and angle
+ * Initialises the map to its default values. Walls on the borders, all squares unvisited.
  */
-void dead_reckoning(){
-  /*drive_getTicks(&left, &right);                                    //gets ticks
-    
-    int deltaRight=right-rightold;                                  //gets the actual movement
-    int deltaLeft=left-leftold;                                     //on this one move
-    
-    float turnangle_new=(deltaRight-deltaLeft)/wheelDistance;       //calculate turn angle or "fi"
-    
-    float delta_y, delta_x;
-
-    if(deltaLeft - deltaRight != 0){
-      float leftradius,rightradius;
-      leftradius=deltaLeft/turnangle_new;                           //calculate left and right radii
-      rightradius=deltaRight/turnangle_new;
-      robot_radius=(leftradius+rightradius)/2;                      //calculate overall robot radius
-
-      delta_y = robot_radius * sin(turnangle_new);
-      delta_x = robot_radius * cos(turnangle_new) - robot_radius;
-
-      float sinv = sin(turnangle_old);
-      float cosv = cos(turnangle_old);
-      y_position += delta_y*sinv - delta_x*cosv;
-      x_position += delta_x*sinv + delta_y*cosv;
-    }
-    else{															                                     //Going forward
-      turnangle_new = 0.0f;
-      delta_y = deltaLeft;											                          //Should be the same as deltaRight
-		
-      y_position += sin(turnangle_old)*delta_y;
-      x_position += cos(turnangle_old)*delta_y;
-    }
-	
-    rightold=right;                                                 //memory update
-    leftold=left;
-    
-    if(waypointIteration>=0) waypointIteration++;
-    if(waypointIteration>=WAYPOINT_FREQUENCY){
-      Waypoint *w = (Waypoint*)malloc(sizeof(Waypoint));
-      w->x_pos = x_position;
-      w->y_pos = y_position;
-      w->next = WaypointHead;
-      WaypointHead = w;
-      waypointIteration = 0;
-    }
-    
-    turnangle_old+=turnangle_new;
-    if(turnangle_old > PI) turnangle_old -= 2*PI;
-    if(turnangle_old < -PI) turnangle_old += 2*PI;*/
-}
-
 void initMap(){
   int i;
   for(i=0;i<MAP_WIDTH*MAP_HEIGHT;i++){
@@ -99,19 +49,31 @@ void initMap(){
   }
 }
 
+/**
+ * Set a coordinate in a maplike 2D array, to a certain val.
+ */
 void setMaplikeCoord(char a[MAP_WIDTH][MAP_HEIGHT], int x, int y, char val){
   if(val==1) a[x/MAP_X_SCALING][y] |= 0x80 >>(x%MAP_X_SCALING);
   if(val==0) a[x/MAP_X_SCALING][y] &= 0xff ^ (0x80>>(x%MAP_X_SCALING));
 }
 
+/**
+ * Gets a coordinate in a maplike 2D array (0 or 1).
+ */
 char getMaplikeCoord(char a[MAP_WIDTH][MAP_HEIGHT], int x, int y){
   return (a[x/MAP_X_SCALING][y] & (0x80>>(x%MAP_X_SCALING))) != 0;
-}  
+}
 
+/**
+ * Sets a map coordinate to val (0 or 1).
+ */
 void setMapCoord(int x, int y, char val){
   setMaplikeCoord(map, x, y, val);
 }
 
+/**
+ * Sets the square the robot is currently in to visited.
+ */
 void visitCurrentPlace(){
   setMaplikeCoord(visited, xPosition*2+1, yPosition*2+1, 1);
 }
@@ -158,6 +120,9 @@ void adjustNormal(){
   drive_ramp(0,0);*/
 }
 
+/**
+ * Turns the robot to a direction (0,1,2,3 - N,E,S,W) and also updates the robotDir.
+ */
 void turnRobotTo(int dir){
   int degree = (dir-robotDir)*90;
   robotDir=dir;
@@ -165,6 +130,9 @@ void turnRobotTo(int dir){
   turnInPlaceDeg(degree);
 }
 
+/**
+ * Returns whether there is a visited square in a certain direction from the robot.
+ */
 char getVisitedInDir(char dir){
   switch(dir){
   case 0: return getMaplikeCoord(visited, xPosition*2+1, yPosition*2+3);
@@ -175,6 +143,9 @@ char getVisitedInDir(char dir){
   }
 }
 
+/**
+ * Returns whether there exists a wall in a certain direction from the robot.
+ */
 char getWallInDir(char dir){
   switch(dir){
   case 0: return getMaplikeCoord(map, xPosition*2+1, yPosition*2+2);
@@ -185,6 +156,10 @@ char getWallInDir(char dir){
   }
 }
 
+/**
+ * Scans the robot's surroundings, updating the map accordingly.
+ * Also corrects the robot by pushing or pulling from the walls.
+ */
 void scanSurroundings(){
   int dists[4], i;
   int distAvg = MAZE_SQUARE_CM/2-4, surrWalls = 0;
@@ -233,6 +208,10 @@ void printMaze(){ //For debugging purposes
   }*/
 }
 
+/**
+ * Computes dijkstra to x and y from the current robot position.
+ * Returns the direction (0,1,2,3 - N,E,S,W) the robot should go next.
+ */
 char dijkstraToMe(int x, int y){
   unsigned short int costMap[MAP_WIDTH*MAP_X_SCALING][MAP_HEIGHT];
   char prev[MAP_WIDTH*MAP_X_SCALING][MAP_HEIGHT];
@@ -275,6 +254,10 @@ char dijkstraToMe(int x, int y){
   return prev[curX][curY];
 }
 
+/**
+ * Drives forward in a mostly straight line, correcting the robot by using the change of the IR sensors.
+ * Also updates the robot's position at the end of the procedure.
+ */
 void driveForward(){
   int left, right, leftStart, rightStart;
   int irLeft, irRight, irLeftOld, irRightOld;
@@ -302,8 +285,8 @@ void driveForward(){
       correcterLeft=correcterRight=0;
     if(left-leftStart>MAZE_SQUARE_TICKS/3 || right-rightStart>MAZE_SQUARE_TICKS/3)
       correcterLeft=correcterRight=0;
-    correcterLeft += (dr - dl)*2;
-    correcterRight += (dl - dr)*2;
+    correcterLeft += (dr - dl)*3;
+    correcterRight += (dl - dr)*3;
     if(irLeft<5 && left-leftStart<MAZE_SQUARE_TICKS*3/4) {correcterLeft+=4; correcterRight+=-4;}
     if(irRight<5 && left-leftStart<MAZE_SQUARE_TICKS*3/4) {correcterLeft+=-4; correcterRight+=4;}
     /*if(irLeft>19) {correcterLeft+=-4; correcterRight+=4;}
@@ -341,6 +324,7 @@ void raceTo(int x, int y){
     turnRobotTo(dir);
     driveForward();
   }
+  drive_ramp(0,0);
 }
 
 void mapOutMaze(){  
