@@ -86,14 +86,25 @@ void calculateIR(int * irLeft, int * irRight, int * irLeftOld, int * irRightOld)
   }
 }
 
+void turnAround(double angle, double radius){
+  if(angle>PI) { turnAround(angle-2*PI, radius); return; }
+  if(angle<-PI) { turnAround(angle+2*PI, radius); return; }
+  double dist = (wheelDistance+radius)*angle;
+  int ticks = (int)(dist);
+  drive_goto(ticks, (int)(radius*angle));
+}
+
 void turnInPlace(double angle){
+  if(angle>PI) { turnInPlace(angle-2*PI); return; }
+  if(angle<-PI) { turnInPlace(angle+2*PI); return; }
   double dist = wheelDistance/2*angle;
   int ticks = (int)(dist);
   static double overshoot = 0;
   
   overshoot += dist-(double)ticks;
 
-  if(overshoot>1) {overshoot-=1; ticks++;}
+  /*if(overshoot>1) {overshoot-=1; ticks++;}
+  if(overshoot<-1) {overshoot+=1; ticks--;}*/
 
   //ticks+=rand()%(ticks>>4)-(ticks>>5);
 

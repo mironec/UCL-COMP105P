@@ -21,6 +21,7 @@
   extern double mcos(double x);
   extern double masin(double x);
   extern void calculateIR(int * irLeft, int * irRight, int * irLeftOld, int * irRightOld);
+  extern void turnAround(double angle, double radius);
   extern void turnInPlace(double angle);
   extern void turnInPlaceDeg(double angle);
   extern void turnInPlaceNoOvershoot(double angle);

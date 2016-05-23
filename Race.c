@@ -187,7 +187,7 @@ char getWallInDir(char dir){
 
 void scanSurroundings(){
   int dists[4], i;
-  int distAvg = MAZE_SQUARE_CM/2-6, surrWalls = 0;
+  int distAvg = MAZE_SQUARE_CM/2-4, surrWalls = 0;
   char origDir = robotDir;
   for(i=0;i<4;i++){
     int h = i;
@@ -211,7 +211,7 @@ void scanSurroundings(){
     i = h;
   }
   
-  /*distAvg /= surrWalls;*/ distAvg = MAZE_SQUARE_CM/2-6;
+  /*distAvg /= surrWalls;*/ distAvg = MAZE_SQUARE_CM/2-4;
   for(i=3;i>=0;i--){
     if(dists[i] < MAZE_SQUARE_CM && dists[i] > distAvg+3 && dists[(i+2)%4] > MAZE_SQUARE_CM){
       turnRobotTo(i);
