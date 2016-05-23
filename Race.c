@@ -186,7 +186,7 @@ void scanSurroundings(){
     i = h;
   }
   
-  /*distAvg /= surrWalls;*/ distAvg = MAZE_SQUARE_CM/2-4;
+  distAvg = MAZE_SQUARE_CM/2-4;
   for(i=3;i>=0;i--){
     if(dists[i] < MAZE_SQUARE_CM && dists[i] > distAvg+3 && dists[(i+2)%4] > MAZE_SQUARE_CM){
       turnRobotTo(i);
@@ -289,14 +289,11 @@ void driveForward(){
     correcterRight += (dl - dr)*3;
     if(irLeft<5 && left-leftStart<MAZE_SQUARE_TICKS*3/4) {correcterLeft+=4; correcterRight+=-4;}
     if(irRight<5 && left-leftStart<MAZE_SQUARE_TICKS*3/4) {correcterLeft+=-4; correcterRight+=4;}
-    /*if(irLeft>19) {correcterLeft+=-4; correcterRight+=4;}
-    if(irRight>19) {correcterLeft+=4; correcterRight+=-4;}*/
     correcterLeft *= speedModifier;
     correcterRight *= speedModifier;
 
     drive_rampStep(32*speedModifier+correcterLeft, 32*speedModifier+correcterRight);
   }
-  //drive_goto(MAZE_SQUARE_TICKS,MAZE_SQUARE_TICKS);
   if(!racing) drive_ramp(0,0);
   xPosition+=(robotDir%2)*(2-robotDir);
   yPosition+=((robotDir+1)%2)*(1-robotDir);
