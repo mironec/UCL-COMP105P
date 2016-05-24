@@ -16,7 +16,7 @@
 
 int irLeft, irRight;
 int irLeftOld, irRightOld;
-float speedModifier = 2.0f;
+float speedModifier = 1.0f;
 
 int distance=10000;
 
@@ -79,6 +79,15 @@ void visitCurrentPlace(){
 }
 
 void adjustNormal(){
+  int second = ping_cm(PING_PIN);
+  turnInPlaceDeg(-15);
+  int first = ping_cm(PING_PIN);
+  turnInPlaceDeg(30);
+  int third = ping_cm(PING_PIN);
+  
+  if(first<=second && first<=third) turnInPlaceDeg(-30);
+  else if(second<=first && second<=third) turnInPlaceDeg(-15);
+  //else if(third<=first && third<=second) turnInPlaceDeg(-30);
   /*int dDist = 0; int oldDDist = 0;
   int ddDist = 0;
   int dir = 1;
@@ -160,8 +169,9 @@ char getWallInDir(char dir){
  * Scans the robot's surroundings, updating the map accordingly.
  * Also corrects the robot by pushing or pulling from the walls.
  */
-void scanSurroundings(){
+int scanSurroundings(){
   int dists[4], i;
+  int ret=0;
   int distAvg = MAZE_SQUARE_CM/2-4, surrWalls = 0;
   char origDir = robotDir;
   for(i=0;i<4;i++){
@@ -171,10 +181,11 @@ void scanSurroundings(){
     turnRobotTo(i);
     dists[i] = ping_cm(PING_PIN);
     if(dists[i]<MAZE_SQUARE_CM){
-      /*distAvg += dists[i];*/ surrWalls++;
-      adjustNormal();
+      //adjustNormal();
       if(dists[i] < distAvg){
         drive_goto((dists[i]-distAvg)/distancePerTick*10, (dists[i]-distAvg)/distancePerTick*10);
+        if(h==1) ret=5;
+        if(h==3) ret=-5;
         dists[i] = ping_cm(PING_PIN);
       }
 
@@ -193,6 +204,8 @@ void scanSurroundings(){
       drive_goto((dists[i]-distAvg)/distancePerTick*10, (dists[i]-distAvg)/distancePerTick*10);
     }
   }
+  
+  return ret;
 }
 
 void printMaze(){ //For debugging purposes
@@ -273,8 +286,8 @@ void driveForward(){
 
     calculateIR(&irLeft, &irRight, &irLeftOld, &irRightOld);
     //printf("lOld: %d, rOld: %d, l: %d, r: %d\n", irLeftOld, irRightOld, irLeft, irRight);
-    int dl = irLeft-irLeftOld;
-    int dr = irRight-irRightOld;
+    int dl = irLeft-irLeftOld; if(dl>5||dl<-5) dl=0;
+    int dr = irRight-irRightOld; if(dr>5||dr<-5) dr=0;
 
     int correcterLeft = (irRight-irLeft)*1; correcterLeft=0;
     int correcterRight = (irLeft-irRight)*1; correcterRight=0;
@@ -285,10 +298,10 @@ void driveForward(){
       correcterLeft=correcterRight=0;
     if(left-leftStart>MAZE_SQUARE_TICKS/3 || right-rightStart>MAZE_SQUARE_TICKS/3)
       correcterLeft=correcterRight=0;
-    correcterLeft += (dr - dl)*3;
-    correcterRight += (dl - dr)*3;
-    if(irLeft<5 && left-leftStart<MAZE_SQUARE_TICKS*3/4) {correcterLeft+=4; correcterRight+=-4;}
-    if(irRight<5 && left-leftStart<MAZE_SQUARE_TICKS*3/4) {correcterLeft+=-4; correcterRight+=4;}
+    correcterLeft += (dr - dl)*2;
+    correcterRight += (dl - dr)*2;
+    if(irLeft<5 && left-leftStart<MAZE_SQUARE_TICKS*3/4) {correcterLeft+=6; correcterRight+=-6;}
+    if(irRight<5 && left-leftStart<MAZE_SQUARE_TICKS*3/4) {correcterLeft+=-6; correcterRight+=6;}
     correcterLeft *= speedModifier;
     correcterRight *= speedModifier;
 
@@ -302,7 +315,9 @@ void driveForward(){
 void mazeTo(int x, int y){
   while(xPosition != x || yPosition != y){
     visitCurrentPlace();
-    scanSurroundings();
+    int tur = scanSurroundings();
+    //printf("%d, %d, dir: %d\n", xPosition, yPosition, robotDir);
+    drive_goto(tur, 0);
     
     char dir = dijkstraToMe(x,y);
     printMaze();
