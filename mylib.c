@@ -6,7 +6,7 @@ const int DO = 22, CLK = 23, DI = 24, CS = 25;              // SD card pins on P
 const float widthOfRobotF = 105.8f;                         // In mm
 const int widthOfRobot = 106;                               // In mm and int
 const float distancePerTick = 3.25f;                        // In mm
-const float wheelDistance = 32.5538f;                       // In encoder ticks
+const float wheelDistance = 32.8538f;                       // In encoder ticks
 
 /*char* itos(int x) {
 	char* c = (char *)malloc(sizeof(char) * 10);

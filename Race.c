@@ -286,8 +286,8 @@ void driveForward(){
 
     calculateIR(&irLeft, &irRight, &irLeftOld, &irRightOld);
     //printf("lOld: %d, rOld: %d, l: %d, r: %d\n", irLeftOld, irRightOld, irLeft, irRight);
-    int dl = irLeft-irLeftOld; if(dl>5||dl<-5) dl=0;
-    int dr = irRight-irRightOld; if(dr>5||dr<-5) dr=0;
+    int dl = irLeft-irLeftOld; if(dl>3||dl<-3) dl=0;
+    int dr = irRight-irRightOld; if(dr>3||dr<-3) dr=0;
 
     int correcterLeft = (irRight-irLeft)*1; correcterLeft=0;
     int correcterRight = (irLeft-irRight)*1; correcterRight=0;
@@ -298,14 +298,15 @@ void driveForward(){
       correcterLeft=correcterRight=0;
     if(left-leftStart>MAZE_SQUARE_TICKS/3 || right-rightStart>MAZE_SQUARE_TICKS/3)
       correcterLeft=correcterRight=0;
-    correcterLeft += (dr - dl)*2;
-    correcterRight += (dl - dr)*2;
-    if(irLeft<5 && left-leftStart<MAZE_SQUARE_TICKS*3/4) {correcterLeft+=6; correcterRight+=-6;}
-    if(irRight<5 && left-leftStart<MAZE_SQUARE_TICKS*3/4) {correcterLeft+=-6; correcterRight+=6;}
+    correcterLeft += (dr - dl)*3;
+    correcterRight += (dl - dr)*3;
+    if(irLeft<6 && left-leftStart<MAZE_SQUARE_TICKS*3/4) {correcterLeft+=8; correcterRight+=-8;}
+    if(irRight<6 && left-leftStart<MAZE_SQUARE_TICKS*3/4) {correcterLeft+=-8; correcterRight+=8;}
     correcterLeft *= speedModifier;
     correcterRight *= speedModifier;
 
     drive_rampStep(32*speedModifier+correcterLeft, 32*speedModifier+correcterRight);
+    pause(20);
   }
   if(!racing) drive_ramp(0,0);
   xPosition+=(robotDir%2)*(2-robotDir);
@@ -317,7 +318,7 @@ void mazeTo(int x, int y){
     visitCurrentPlace();
     int tur = scanSurroundings();
     //printf("%d, %d, dir: %d\n", xPosition, yPosition, robotDir);
-    drive_goto(tur, 0);
+    //drive_goto(tur, 0);
     
     char dir = dijkstraToMe(x,y);
     printMaze();
