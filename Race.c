@@ -22,8 +22,6 @@ int distance=10000;
 
 int left,right,leftold,rightold;
 
-float turnangle_old,robot_radius;
-
 int xPosition,yPosition;
 char robotDir;
 
@@ -78,57 +76,6 @@ void visitCurrentPlace(){
   setMaplikeCoord(visited, xPosition*2+1, yPosition*2+1, 1);
 }
 
-void adjustNormal(){
-  int second = ping_cm(PING_PIN);
-  turnInPlaceDeg(-15);
-  int first = ping_cm(PING_PIN);
-  turnInPlaceDeg(30);
-  int third = ping_cm(PING_PIN);
-  
-  if(first<=second && first<=third) turnInPlaceDeg(-30);
-  else if(second<=first && second<=third) turnInPlaceDeg(-15);
-  //else if(third<=first && third<=second) turnInPlaceDeg(-30);
-  /*int dDist = 0; int oldDDist = 0;
-  int ddDist = 0;
-  int dir = 1;
-  int dist = ping_cm(PING_PIN);  int oldDist;
-  int modi;
-  int counter=0;
-  while(modi<=16){
-    oldDist = dist; dist = ping_cm(PING_PIN);
-    oldDDist = dDist; dDist = dist-oldDist;
-    ddDist = dDist - oldDDist;
-
-    printf("Dist: %d, dDist: %d, ddDist: %d\n", dist, dDist, ddDist);
-
-    if(dDist>0 && ddDist>0) dir=-dir;
-    modi = 2<<(counter/20);
-    if(dir==1) drive_speed(32/modi,-32/modi);
-    else if(dir==-1) drive_speed(-32/modi,32/modi);
-    counter++;
-    pause(50);
-  }
-  drive_ramp(0,0);*/
-  /*int dir = 1;
-  int dist = ping_cm(PING_PIN);
-  int lowestDist = dist;
-  int modi = 2;
-  int phase = 0;
-  while(1){
-    dist = ping_cm(PING_PIN); printf("Dist: %d\n", dist);
-    if(dist>lowestDist && phase==0) {dir=-dir; lowestDist=dist; phase=1;}
-    if(dist<lowestDist && phase==0) {lowestDist=dist; phase=1;}
-    if(dist>lowestDist && phase==1) {dir=-dir; phase=2;}
-    if(dist<lowestDist && phase==1) {lowestDist=dist;}
-    if(dist==lowestDist && phase==2) break;
-
-    if(dir==1) drive_speed(32/modi,-32/modi);
-    else if(dir==-1) drive_speed(-32/modi,32/modi);
-    pause(50);
-  }
-  drive_ramp(0,0);*/
-}
-
 /**
  * Turns the robot to a direction (0,1,2,3 - N,E,S,W) and also updates the robotDir.
  */
@@ -171,7 +118,6 @@ char getWallInDir(char dir){
  */
 int scanSurroundings(){
   int dists[4], i;
-  int ret=0;
   int distAvg = MAZE_SQUARE_CM/2-4, surrWalls = 0;
   char origDir = robotDir;
   for(i=0;i<4;i++){
@@ -181,11 +127,8 @@ int scanSurroundings(){
     turnRobotTo(i);
     dists[i] = ping_cm(PING_PIN);
     if(dists[i]<MAZE_SQUARE_CM){
-      //adjustNormal();
       if(dists[i] < distAvg){
         drive_goto((dists[i]-distAvg)/distancePerTick*10, (dists[i]-distAvg)/distancePerTick*10);
-        if(h==1) ret=5;
-        if(h==3) ret=-5;
         dists[i] = ping_cm(PING_PIN);
       }
 
@@ -204,8 +147,6 @@ int scanSurroundings(){
       drive_goto((dists[i]-distAvg)/distancePerTick*10, (dists[i]-distAvg)/distancePerTick*10);
     }
   }
-  
-  return ret;
 }
 
 void printMaze(){ //For debugging purposes
@@ -316,9 +257,8 @@ void driveForward(){
 void mazeTo(int x, int y){
   while(xPosition != x || yPosition != y){
     visitCurrentPlace();
-    int tur = scanSurroundings();
+    scanSurroundings();
     //printf("%d, %d, dir: %d\n", xPosition, yPosition, robotDir);
-    //drive_goto(tur, 0);
     
     char dir = dijkstraToMe(x,y);
     printMaze();
@@ -359,19 +299,17 @@ int main()
   
   //Variable setup
   xPosition=yPosition=1; robotDir = 0;
-  turnangle_old=PI/2;
   drive_getTicks(&left, &right);
   rightold = right;
   leftold = left;
   
   pause(500);
-  //Main loop
   initMap();
   mapOutMaze();
 
   turnRobotTo(0);
-  for(i=0;i<3;i++){pause(166); high(26); pause(166); low(26);}
+  for(i=0;i<3;i++){pause(166); high(26); pause(166); low(26);}      //Maze mapped out, blink and wait
   pause(1000);
-  racing = 1;
+  racing = 1;                                                       //Start racing towards the goal
   raceTo(4,5);
 }
