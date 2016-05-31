@@ -10,11 +10,11 @@
   extern const int widthOfRobot;
   extern const float distancePerTick;
   extern const float wheelDistance;
-  typedef struct Waypoint{
+  /*typedef struct Waypoint{
     float x_pos;
     float y_pos;
     struct Waypoint * next;
-  } Waypoint;
+  } Waypoint;*/
 
   //extern char* itos(int x);
   extern double msin(double x);

@@ -16,7 +16,7 @@
 
 int irLeft, irRight;
 int irLeftOld, irRightOld;
-float speedModifier = 1.0f;
+float speedModifier = 1.5f;
 
 int distance=10000;
 
@@ -30,6 +30,13 @@ int accError = 0;
 char map[MAP_WIDTH][MAP_HEIGHT];
 char visited[MAP_WIDTH][MAP_HEIGHT];
 char racing = 0;
+
+typedef struct waypoint {
+  short int x;
+  short int y;
+  char nextDir;
+  struct waypoint * nextWaypoint;
+} Waypoint;
 
 /**
  * Initialises the map to its default values. Walls on the borders, all squares unvisited.
@@ -222,13 +229,13 @@ void driveForward(){
   drive_setRampStep(4*speedModifier);
 
   while((left < leftStart+MAZE_SQUARE_TICKS || right < rightStart+MAZE_SQUARE_TICKS )
-   && ping_cm(PING_PIN)>MAZE_SQUARE_CM/2-6){
+   && ping_cm(PING_PIN)>MAZE_SQUARE_CM/2-4+(racing?4:0)){
     drive_getTicks(&left, &right);
 
     calculateIR(&irLeft, &irRight, &irLeftOld, &irRightOld);
     //printf("lOld: %d, rOld: %d, l: %d, r: %d\n", irLeftOld, irRightOld, irLeft, irRight);
-    int dl = irLeft-irLeftOld; if(dl>3||dl<-3) dl=0;
-    int dr = irRight-irRightOld; if(dr>3||dr<-3) dr=0;
+    int dl = irLeft-irLeftOld; if(dl>3+(racing?2:0)||dl<-3-(racing?2:0)) dl=0;
+    int dr = irRight-irRightOld; if(dr>3+(racing?2:0)||dr<-3-(racing?2:0)) dr=0;
 
     int correcterLeft = (irRight-irLeft)*1; correcterLeft=0;
     int correcterRight = (irLeft-irRight)*1; correcterRight=0;
@@ -243,15 +250,18 @@ void driveForward(){
     correcterRight += (dl - dr)*3;
     if(irLeft<6 && left-leftStart<MAZE_SQUARE_TICKS*3/4) {correcterLeft+=8; correcterRight+=-8;}
     if(irRight<6 && left-leftStart<MAZE_SQUARE_TICKS*3/4) {correcterLeft+=-8; correcterRight+=8;}
+    if(irRight==20&&irLeft>12) {correcterRight+=1; correcterLeft-=1;}
+    if(irLeft==20&&irRight>12) {correcterLeft+=1; correcterRight-=1;}
     correcterLeft *= speedModifier;
     correcterRight *= speedModifier;
 
     drive_rampStep(32*speedModifier+correcterLeft, 32*speedModifier+correcterRight);
-    pause(20);
+    pause(5);
   }
   if(!racing) drive_ramp(0,0);
   xPosition+=(robotDir%2)*(2-robotDir);
   yPosition+=((robotDir+1)%2)*(1-robotDir);
+  drive_setRampStep(4);
 }
 
 void mazeTo(int x, int y){
@@ -268,14 +278,15 @@ void mazeTo(int x, int y){
   }
 }
 
-void raceTo(int x, int y){
-  speedModifier = 2.0f;
-  while(xPosition != x || yPosition != y){    
-    char dir = dijkstraToMe(x,y);
-    if(dir==0xff) {/*printf("Fatal error! No path - lost maybe?");*/ return;}
+void raceTo(int x, int y, Waypoint * waypoints){
+  speedModifier = 3.0f;
+  Waypoint * current = waypoints;
+  while(xPosition != x || yPosition != y){
+    char dir = current->nextDir;
     if(dir!=robotDir) drive_ramp(0,0);
     turnRobotTo(dir);
     driveForward();
+    current = current->nextWaypoint;
   }
   drive_ramp(0,0);
 }
@@ -308,8 +319,28 @@ int main()
   mapOutMaze();
 
   turnRobotTo(0);
+  int oldX = xPosition; int oldY = yPosition;
+  Waypoint * start = (Waypoint*)malloc(sizeof(Waypoint));
+  Waypoint * current = start;
+  Waypoint * previous = NULL;
+  while(xPosition!=4 || yPosition!=5){
+    char dir = dijkstraToMe(4,5);
+    current->x = xPosition;
+    current->y = yPosition;
+    current->nextDir = dir;
+    current->nextWaypoint = (Waypoint*)malloc(sizeof(Waypoint));
+    previous = current;
+    current = current->nextWaypoint;
+
+    xPosition+=(dir%2)*(2-dir);
+    yPosition+=((dir+1)%2)*(1-dir);
+  }
+  free(current);
+  previous->nextWaypoint = NULL;
+  xPosition = oldX; yPosition = oldY;
+
   for(i=0;i<3;i++){pause(166); high(26); pause(166); low(26);}      //Maze mapped out, blink and wait
   pause(1000);
   racing = 1;                                                       //Start racing towards the goal
-  raceTo(4,5);
+  raceTo(4,5,start);
 }
