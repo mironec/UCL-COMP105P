@@ -296,15 +296,15 @@ void driveCurved(int dir){
     turnLeft = speedModifier*(leftDist-MAZE_SQUARE_TICKS*PI/4)*32/(MAZE_SQUARE_TICKS*PI/4);
     turnRight = speedModifier*(rightDist-MAZE_SQUARE_TICKS*PI/4)*32/(MAZE_SQUARE_TICKS*PI/4);
 
-    if(irLeft<6 && left-leftStart<MAZE_SQUARE_TICKS*3/4) {correcterLeft+=4; correcterRight+=-4;}
-    if(irRight<6 && left-leftStart<MAZE_SQUARE_TICKS*3/4) {correcterLeft+=-4; correcterRight+=4;}
+    if(irLeft<6 && (left-leftStart<MAZE_SQUARE_TICKS*3/4 || dir)) {correcterLeft+=4; correcterRight+=-4;}
+    if(irRight<6 && (left-leftStart<MAZE_SQUARE_TICKS*3/4 || !dir)) {correcterLeft+=-4; correcterRight+=4;}
     if(irRight==20&&irLeft>12) {correcterRight+=1; correcterLeft-=1;}
     if(irLeft==20&&irRight>12) {correcterLeft+=1; correcterRight-=1;}
     correcterLeft *= speedModifier;
     correcterRight *= speedModifier;
 
     drive_speed(32*speedModifier+correcterLeft+turnLeft, 32*speedModifier+correcterRight+turnRight);
-    pause(5);
+    pause(1);
   }
   if(!racing) drive_ramp(0,0);
   xPosition+=(robotDir%2)*(2-robotDir);
