@@ -215,11 +215,7 @@ char dijkstraToMe(int x, int y){
   return prev[curX][curY];
 }
 
-/**
- * Drives forward in a mostly straight line, correcting the robot by using the change of the IR sensors.
- * Also updates the robot's position at the end of the procedure.
- */
-void driveForward(){
+void driveForwardDist(int dist){
   int left, right, leftStart, rightStart;
   int irLeft, irRight, irLeftOld, irRightOld;
 
@@ -228,12 +224,12 @@ void driveForward(){
   left = leftStart, right = rightStart;
   drive_setRampStep(4*speedModifier);
 
-  while((left < leftStart+MAZE_SQUARE_TICKS || right < rightStart+MAZE_SQUARE_TICKS )
+  while((left < leftStart+dist || right < rightStart+dist )
    && ping_cm(PING_PIN)>MAZE_SQUARE_CM/2-4+(racing?4:0)){
     drive_getTicks(&left, &right);
 
     calculateIR(&irLeft, &irRight, &irLeftOld, &irRightOld);
-    //printf("lOld: %d, rOld: %d, l: %d, r: %d\n", irLeftOld, irRightOld, irLeft, irRight);
+
     int dl = irLeft-irLeftOld; if(dl>3+(racing?2:0)||dl<-3-(racing?2:0)) dl=0;
     int dr = irRight-irRightOld; if(dr>3+(racing?2:0)||dr<-3-(racing?2:0)) dr=0;
 
@@ -244,23 +240,76 @@ void driveForward(){
       correcterLeft=correcterRight=0;
     if((robotDir%2==1)&&!(getMaplikeCoord(map,xPosition*2+1,yPosition*2)&&getMaplikeCoord(map,xPosition*2+1,yPosition*2+2)))
       correcterLeft=correcterRight=0;
-    if(left-leftStart>MAZE_SQUARE_TICKS/3 || right-rightStart>MAZE_SQUARE_TICKS/3)
+    if(left-leftStart>dist/3 || right-rightStart>dist/3)
       correcterLeft=correcterRight=0;
     correcterLeft += (dr - dl)*3;
     correcterRight += (dl - dr)*3;
-    if(irLeft<6 && left-leftStart<MAZE_SQUARE_TICKS*3/4) {correcterLeft+=8; correcterRight+=-8;}
-    if(irRight<6 && left-leftStart<MAZE_SQUARE_TICKS*3/4) {correcterLeft+=-8; correcterRight+=8;}
+    if(irLeft<6 && left-leftStart<dist*3/4) {correcterLeft+=8; correcterRight+=-8;}
+    if(irRight<6 && left-leftStart<dist*3/4) {correcterLeft+=-8; correcterRight+=8;}
+    if(irRight==20&&irLeft>12) {correcterRight+=1; correcterLeft-=1;}
+    if(irLeft==20&&irRight>12) {correcterLeft+=1; correcterRight-=1;}
+    correcterLeft *= speedModifier;
+    correcterRight *= speedModifier;
+    if(racing) {correcterLeft/=2; correcterRight/=2;}
+
+    if(racing) drive_speed(32*speedModifier+correcterLeft, 32*speedModifier+correcterRight);
+    else drive_rampStep(32*speedModifier+correcterLeft, 32*speedModifier+correcterRight);
+    pause(5);
+  }
+  if(!racing) drive_ramp(0,0);
+  drive_setRampStep(4);
+}
+
+
+/**
+ * Drives forward in a mostly straight line, correcting the robot by using the change of the IR sensors.
+ * Also updates the robot's position at the end of the procedure.
+ */
+void driveForward(){
+  driveForwardDist(MAZE_SQUARE_TICKS);
+  xPosition+=(robotDir%2)*(2-robotDir);
+  yPosition+=((robotDir+1)%2)*(1-robotDir);
+}
+
+/**
+ * Drives in a curved path (a turn). The dir gives the direction of the turn: 0 - left, 1 - right;
+ */
+void driveCurved(int dir){
+  int left, right, leftStart, rightStart;
+  int irLeft, irRight, irLeftOld, irRightOld;
+  int turnLeft, turnRight;
+  int leftDist = (MAZE_SQUARE_TICKS/2+(dir?1:-1)*wheelDistance/2)*PI/2;
+  int rightDist = (MAZE_SQUARE_TICKS/2+(dir?-1:1)*wheelDistance/2)*PI/2;
+
+  drive_getTicks(&leftStart, &rightStart);
+  calculateIR(&irLeft, &irRight, &irLeftOld, &irRightOld);
+  left = leftStart, right = rightStart;
+  drive_setRampStep(4*speedModifier);
+  
+  while((left < leftStart+leftDist || right < rightStart+rightDist )
+   && ping_cm(PING_PIN)>MAZE_SQUARE_CM/2-4+(racing?4:0)){
+    drive_getTicks(&left, &right);
+
+    calculateIR(&irLeft, &irRight, &irLeftOld, &irRightOld);
+
+    int correcterLeft = 0, correcterRight = 0;
+    turnLeft = speedModifier*(leftDist-MAZE_SQUARE_TICKS*PI/4)*32/(MAZE_SQUARE_TICKS*PI/4);
+    turnRight = speedModifier*(rightDist-MAZE_SQUARE_TICKS*PI/4)*32/(MAZE_SQUARE_TICKS*PI/4);
+
+    if(irLeft<6 && left-leftStart<MAZE_SQUARE_TICKS*3/4) {correcterLeft+=4; correcterRight+=-4;}
+    if(irRight<6 && left-leftStart<MAZE_SQUARE_TICKS*3/4) {correcterLeft+=-4; correcterRight+=4;}
     if(irRight==20&&irLeft>12) {correcterRight+=1; correcterLeft-=1;}
     if(irLeft==20&&irRight>12) {correcterLeft+=1; correcterRight-=1;}
     correcterLeft *= speedModifier;
     correcterRight *= speedModifier;
 
-    drive_rampStep(32*speedModifier+correcterLeft, 32*speedModifier+correcterRight);
+    drive_speed(32*speedModifier+correcterLeft+turnLeft, 32*speedModifier+correcterRight+turnRight);
     pause(5);
   }
   if(!racing) drive_ramp(0,0);
   xPosition+=(robotDir%2)*(2-robotDir);
   yPosition+=((robotDir+1)%2)*(1-robotDir);
+  robotDir = (robotDir+(dir?1:-1))%4;
   drive_setRampStep(4);
 }
 
@@ -281,12 +330,37 @@ void mazeTo(int x, int y){
 void raceTo(int x, int y, Waypoint * waypoints){
   speedModifier = 3.0f;
   Waypoint * current = waypoints;
-  while(xPosition != x || yPosition != y){
+  char cliffhang = 0;
+
+  while(current != NULL){
     char dir = current->nextDir;
-    if(dir!=robotDir) drive_ramp(0,0);
-    turnRobotTo(dir);
-    driveForward();
-    current = current->nextWaypoint;
+    char doneMove = 0;
+
+    if(current->nextWaypoint != NULL){
+      char dir2 = current->nextWaypoint->nextDir;
+      if(dir!=dir2){
+        char turn;
+        if(dir2-dir==1) turn = 1;
+        if(dir-dir2==1) turn = 0;
+        if(dir2==0 && dir==3) turn = 1;
+        if(dir2==3 && dir==0) turn = 0;
+        if(!cliffhang) driveForwardDist(MAZE_SQUARE_TICKS/2);
+        driveCurved(turn);
+        cliffhang = 1;
+        doneMove = 1;
+        current = current->nextWaypoint;
+      }
+    }
+    if(!doneMove){
+      if(dir!=robotDir) drive_ramp(0,0);
+      if(cliffhang && dir==robotDir) {driveForwardDist(MAZE_SQUARE_TICKS/2); cliffhang = 0;}
+      else {
+        turnRobotTo(dir);
+        driveForward();
+      }
+      doneMove = 1;
+      current = current->nextWaypoint;
+    }
   }
   drive_ramp(0,0);
 }
@@ -299,6 +373,16 @@ void mapOutMaze(){
   mazeTo(1,1);
   
   printMaze();
+}
+
+Waypoint * addToWaypoints(int x, int y, char nextDir, Waypoint * toAdd){
+  toAdd->nextWaypoint = (Waypoint*)malloc(sizeof(Waypoint));
+  toAdd->nextWaypoint->nextWaypoint = NULL;
+  toAdd->nextWaypoint->x = x;
+  toAdd->nextWaypoint->y = y;
+  toAdd->nextWaypoint->nextDir = nextDir;
+
+  return toAdd->nextWaypoint;
 }
 
 int main()
@@ -338,9 +422,25 @@ int main()
   free(current);
   previous->nextWaypoint = NULL;
   xPosition = oldX; yPosition = oldY;
+  
+  /*Waypoint * current, * start;
+  start = current = (Waypoint*)malloc(sizeof(Waypoint));
+  current->x = 1; current->y=1; current->nextDir=0; current->nextWaypoint=NULL;
+  current = addToWaypoints(1,2,1,current);
+  current = addToWaypoints(2,2,0,current);
+  current = addToWaypoints(2,3,0,current);
+  current = addToWaypoints(2,4,1,current);
+  current = addToWaypoints(3,4,0,current);
+  current = addToWaypoints(3,5,1,current);*/
 
   for(i=0;i<3;i++){pause(166); high(26); pause(166); low(26);}      //Maze mapped out, blink and wait
   pause(1000);
   racing = 1;                                                       //Start racing towards the goal
   raceTo(4,5,start);
+
+  while(start != NULL){
+    Waypoint * old = start;
+    start = start->nextWaypoint;
+    free(old);
+  }
 }
